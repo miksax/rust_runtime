@@ -53,9 +53,19 @@ impl super::Cursor {
         }
     }
 
-    pub fn write_u256_be(&mut self, val: &u256) -> Result<(), crate::error::Error> {
+    pub fn write_u256_le(&mut self, val: &u256) -> Result<(), crate::error::Error> {
         if self.writer + 32 <= self.inner.len() {
             self.inner[self.writer..self.writer + 32].copy_from_slice(&val.to_le_bytes());
+            self.writer += 32;
+            Ok(())
+        } else {
+            Err(crate::error::Error::BufferIsFull)
+        }
+    }
+
+    pub fn write_u256_be(&mut self, val: &u256) -> Result<(), crate::error::Error> {
+        if self.writer + 32 <= self.inner.len() {
+            self.inner[self.writer..self.writer + 32].copy_from_slice(&val.to_be_bytes());
             self.writer += 32;
             Ok(())
         } else {

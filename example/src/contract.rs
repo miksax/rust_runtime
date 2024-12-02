@@ -5,17 +5,17 @@ use rust_runtime::{
     math::abi::encode_selector_const,
     storage::{
         multi_address_map::MultiAddressMemoryMap,
-        stored::{StoredU256, StoredU8},
+        stored::{StoredTrait, StoredU256, StoredU8},
         stored_map::StoredMap,
         stored_string::StoredString,
-        StorageValue,
+        value, StorageValue,
     },
     types::{CallData, Selector},
     ContractTrait, OP20Trait,
 };
 
 const SELECTOR_AIRDROP: Selector = encode_selector_const("airdrop");
-const SELECTOR_AIRDROP_DEFINED: Selector = encode_selector_const("airdropDefined");
+const SELECTOR_AIRDROP_DEFINED: Selector = encode_selector_const("airdropWithAmount");
 const SELECTOR_MINT: Selector = encode_selector_const("mint");
 
 pub struct Contract {
@@ -32,11 +32,11 @@ impl Contract {
             params: rust_runtime::contract::op_20::OP20Params {
                 max_supply: StoredU256::new_const(
                     Pointer::MaxSupply.u16(),
-                    u256::new(2_100_000_000_000_000),
+                    u256::new(100000000000000000000000000),
                 ),
-                decimals: StoredU8::new_const(Pointer::Decimals.u16(), 8),
-                name: StoredString::new_const(Pointer::Name.u16(), "Moto"),
-                symbol: StoredString::new_const(Pointer::Symbol.u16(), "MOTO"),
+                decimals: StoredU8::new_const(Pointer::Decimals.u16(), 18),
+                name: StoredString::new_const(Pointer::Name.u16(), "MyToken"),
+                symbol: StoredString::new_const(Pointer::Symbol.u16(), "TOKEN"),
             },
             balance_of_map: StoredMap::new(Pointer::BalanceOfMap.u16()),
             allowance_map: MultiAddressMemoryMap::new(
@@ -57,7 +57,7 @@ impl Contract {
         match selector {
             SELECTOR_MINT => self.mint(call_data),
             SELECTOR_AIRDROP => self.airdrop(call_data),
-            SELECTOR_AIRDROP_DEFINED => self.airdrop_defined(call_data),
+            SELECTOR_AIRDROP_DEFINED => self.airdrop_with_amount(call_data),
             _ => OP20Trait::execute_base(self, selector, call_data),
         }
     }
@@ -89,13 +89,27 @@ impl Contract {
             self.mint_base(address, amount.clone(), false)?;
         }
 
-        let mut response = crate::WaBuffer::new(32, 1);
+        let mut response = crate::WaBuffer::new(1, 1);
         let mut cursor = response.cursor();
         cursor.write_bool(true)?;
         Ok(response)
     }
 
-    fn airdrop_defined(
+    fn optimized_mint(
+        &mut self,
+        address: AddressHash,
+        amount: u256,
+    ) -> Result<(), rust_runtime::error::Error> {
+        self.balance_of_map.set(&address, amount);
+        let value = self.total_supply.value() + amount;
+        self.total_supply.set_no_commit(value);
+
+        Self::create_mint_event(address, amount)?;
+
+        Ok(())
+    }
+
+    fn airdrop_with_amount(
         &mut self,
         mut call_data: CallData,
     ) -> Result<crate::WaBuffer, rust_runtime::error::Error> {
@@ -105,11 +119,12 @@ impl Contract {
 
         for _ in 0..amount_of_addresses {
             let address = call_data.read_address()?;
-
-            self.mint_base(&address, amount, false)?;
+            self.optimized_mint(address, amount)?;
         }
 
-        let mut response = crate::WaBuffer::new(32, 1);
+        self.total_supply.commit();
+
+        let mut response = crate::WaBuffer::new(1, 1);
         let mut cursor = response.cursor();
         cursor.write_bool(true)?;
         Ok(response)

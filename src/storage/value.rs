@@ -10,7 +10,7 @@ impl StorageValue {
         inner: [0; crate::constant::STORE_VALUE_SIZE],
     };
 
-    pub fn from_le_bytes(bytes: [u8; crate::constant::STORE_VALUE_SIZE]) -> Self {
+    pub fn from_bytes(bytes: [u8; crate::constant::STORE_VALUE_SIZE]) -> Self {
         Self { inner: bytes }
     }
     pub fn value(&self) -> [u8; crate::constant::STORE_VALUE_SIZE] {
@@ -34,19 +34,19 @@ impl StorageValue {
     }
 
     pub fn u16(&self) -> u16 {
-        u16::from_be_bytes([self.inner[0], self.inner[1]])
+        u16::from_be_bytes(self.inner[30..31].try_into().unwrap())
     }
 
     pub fn u32(&self) -> u32 {
-        u32::from_be_bytes(self.inner[0..4].try_into().unwrap())
+        u32::from_be_bytes(self.inner[28..32].try_into().unwrap())
     }
 
     pub fn u64(&self) -> u64 {
-        u64::from_be_bytes(self.inner[0..8].try_into().unwrap())
+        u64::from_be_bytes(self.inner[24..32].try_into().unwrap())
     }
 
     pub fn u128(&self) -> u128 {
-        u128::from_be_bytes(self.inner[0..16].try_into().unwrap())
+        u128::from_be_bytes(self.inner[16..32].try_into().unwrap())
     }
 
     pub fn u256(&self) -> u256 {
@@ -108,7 +108,7 @@ impl From<u128> for StorageValue {
 
 impl From<u256> for StorageValue {
     fn from(value: u256) -> Self {
-        Self::from(value.to_le_bytes())
+        Self::from(value.to_be_bytes())
     }
 }
 

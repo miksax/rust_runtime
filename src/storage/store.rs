@@ -2,7 +2,6 @@ use core::default;
 
 use ethnum::u256;
 
-use crate::memory::map::Map;
 pub type StoreKey = [u8; crate::constant::STORE_KEY_SIZE];
 
 #[derive(Copy, Clone, Eq, PartialEq)]

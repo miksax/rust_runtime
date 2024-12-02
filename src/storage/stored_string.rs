@@ -109,4 +109,19 @@ impl StoredTrait<String, &'static str> for StoredString {
             self.load()
         }
     }
+
+    fn set_no_commit(&mut self, value: String) -> String {
+        self.value = Some(value.clone());
+        value
+    }
+
+    fn commit(&mut self) {
+        if let Some(value) = &self.value {
+            self.save(value.clone());
+        }
+    }
+
+    fn refresh(&mut self) -> String {
+        self.load()
+    }
 }

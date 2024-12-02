@@ -42,6 +42,8 @@ impl Cursor {
 
 #[cfg(test)]
 mod tests {
+    use ethnum::u256;
+
     #[test]
     fn test_reader() {
         let mem = alloc::boxed::Box::new([0; 256]);
@@ -52,11 +54,13 @@ mod tests {
         cursor.write_u32_le(&3).unwrap();
         cursor.write_u64_le(&4).unwrap();
         cursor.write_u128_le(&5).unwrap();
+        cursor.write_u256_be(&u256::new(6)).unwrap();
 
         assert_eq!(cursor.read_u8().unwrap(), 1);
         assert_eq!(cursor.read_u16_le().unwrap(), 2);
         assert_eq!(cursor.read_u32_le().unwrap(), 3);
         assert_eq!(cursor.read_u64_le().unwrap(), 4);
         assert_eq!(cursor.read_u128_le().unwrap(), 5);
+        assert_eq!(cursor.read_u256_be().unwrap(), u256::new(6));
     }
 }
