@@ -104,6 +104,8 @@ impl GlobalStore {
             unsafe {
                 GLOBAL_STORE.insert(key.clone(), value);
             }
+        } else {
+            crate::log("Storage has failed");
         }
     }
 
