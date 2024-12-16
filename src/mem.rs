@@ -150,18 +150,15 @@ impl FromStr for WaBuffer {
     }
 }
 
-#[no_mangle]
 #[export_name = "__new"]
 pub fn new(size: usize, id: u32) -> WaPtr {
     WaCell::new(size, id).ptr()
 }
 
-#[no_mangle]
 #[export_name = "__pin"]
 pub fn pin(ptr: WaPtr) -> WaPtr {
     ptr
 }
 
-#[no_mangle]
 #[export_name = "__unpin"]
 pub fn unpin(_ptr: WaPtr) {}

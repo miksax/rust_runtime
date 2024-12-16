@@ -7,7 +7,7 @@
 ## Compilation
 
 ```sh
-cargo build --release -p example
+cargo build --release -p example --target wasm32-unknown-unknown
 wasm-opt -O2 -Oz --strip-debug --strip-dwarf --dce --disable-multimemory --disable-fp16 --disable-mutable-globals --disable-gc --disable-multivalue --disable-nontrapping-float-to-int --disable-threads --mvp-features --remove-unused-module-elements ./target/wasm32-unknown-unknown/release/example.wasm -o ./rust.wasm
 ```
 

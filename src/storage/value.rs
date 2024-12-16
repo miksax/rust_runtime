@@ -30,11 +30,11 @@ impl StorageValue {
     }
 
     pub fn u8(&self) -> u8 {
-        self.inner[0]
+        self.inner[31]
     }
 
     pub fn u16(&self) -> u16 {
-        u16::from_be_bytes(self.inner[30..31].try_into().unwrap())
+        u16::from_be_bytes(self.inner[30..32].try_into().unwrap())
     }
 
     pub fn u32(&self) -> u32 {
@@ -71,38 +71,38 @@ impl From<&[u8]> for StorageValue {
         let mut inner = [0u8; crate::constant::STORE_VALUE_SIZE];
         let length = value.len().min(crate::constant::STORE_VALUE_SIZE);
 
-        inner[0..length].copy_from_slice(&value[0..length]);
+        inner[32 - length..32].copy_from_slice(&value[0..length]);
         StorageValue { inner }
     }
 }
 
 impl From<u8> for StorageValue {
     fn from(value: u8) -> Self {
-        From::<&[u8]>::from(&value.to_le_bytes())
+        From::<&[u8]>::from(&value.to_be_bytes())
     }
 }
 
 impl From<u16> for StorageValue {
     fn from(value: u16) -> Self {
-        From::<&[u8]>::from(&value.to_le_bytes())
+        From::<&[u8]>::from(&value.to_be_bytes())
     }
 }
 
 impl From<u32> for StorageValue {
     fn from(value: u32) -> Self {
-        From::<&[u8]>::from(&value.to_le_bytes())
+        From::<&[u8]>::from(&value.to_be_bytes())
     }
 }
 
 impl From<u64> for StorageValue {
     fn from(value: u64) -> Self {
-        From::<&[u8]>::from(&value.to_le_bytes())
+        From::<&[u8]>::from(&value.to_be_bytes())
     }
 }
 
 impl From<u128> for StorageValue {
     fn from(value: u128) -> Self {
-        From::<&[u8]>::from(&value.to_le_bytes())
+        From::<&[u8]>::from(&value.to_be_bytes())
     }
 }
 

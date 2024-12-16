@@ -8,7 +8,7 @@ use rust_runtime::{
         stored::{StoredTrait, StoredU256, StoredU8},
         stored_map::StoredMap,
         stored_string::StoredString,
-        value, StorageValue,
+        StorageValue,
     },
     types::{CallData, Selector},
     ContractTrait, OP20Trait,
@@ -68,7 +68,7 @@ impl Contract {
     ) -> Result<crate::WaBuffer, rust_runtime::error::Error> {
         self.only_owner(&self.environment().sender)?;
 
-        let mut response = crate::WaBuffer::new(32, 1);
+        let mut response = crate::WaBuffer::new(1, 1);
         let mut cursor = response.cursor();
         cursor.write_bool(self.mint_base(
             &call_data.read_address()?,

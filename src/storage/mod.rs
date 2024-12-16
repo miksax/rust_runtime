@@ -12,15 +12,17 @@ pub mod value;
 pub use key::StorageKey;
 pub use value::StorageValue;
 
+#[allow(static_mut_refs)]
 static mut GLOBAL_STORE: Map<StorageKey, StorageValue> = Map::new();
 
 pub struct GlobalStore {}
 
 impl GlobalStore {
-    pub fn get(key: &[u8; 32], default_value: StorageValue) -> StorageValue {
+    pub fn get(key: &StorageKey, default_value: StorageValue) -> StorageValue {
         Self::ensure_key(key, default_value);
 
         if Self::has_key(key) {
+            #[allow(static_mut_refs)]
             unsafe {
                 if let Some(value) = GLOBAL_STORE.get(key) {
                     *value
@@ -34,21 +36,22 @@ impl GlobalStore {
     }
 
     pub fn set(key: StorageKey, value: StorageValue) {
-        if let Ok(true) = crate::env::pointer_store(&key, &value) {
-            unsafe {
-                GLOBAL_STORE.insert(key, value);
-            }
+        assert!(crate::env::pointer_store(&key, &value).is_ok());
+        #[allow(static_mut_refs)]
+        unsafe {
+            GLOBAL_STORE.insert(key, value);
         }
     }
 
     fn has_key(key: &StorageKey) -> bool {
+        #[allow(static_mut_refs)]
         unsafe {
             if GLOBAL_STORE.contains_key(key) {
                 return true;
             };
 
             if let Ok(result) = crate::env::pointer_load(key) {
-                GLOBAL_STORE.push(*key, result);
+                GLOBAL_STORE.insert(*key, result);
                 return !result.zero();
             }
         }
