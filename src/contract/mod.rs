@@ -11,8 +11,8 @@ pub trait ContractTrait {
         address.eq(&self.environment().address)
     }
 
-    fn only_owner(&self, caller: &AddressHash) -> Result<(), crate::error::Error> {
-        if self.environment().owner.ne(caller) {
+    fn only_deployer(&self, caller: &AddressHash) -> Result<(), crate::error::Error> {
+        if self.environment().deployer.ne(caller) {
             Err(crate::error::Error::OnlyOwner)
         } else {
             Ok(())

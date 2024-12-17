@@ -37,6 +37,7 @@ impl GlobalStore {
 
     pub fn set(key: StorageKey, value: StorageValue) {
         assert!(crate::env::pointer_store(&key, &value).is_ok());
+
         #[allow(static_mut_refs)]
         unsafe {
             GLOBAL_STORE.insert(key, value);

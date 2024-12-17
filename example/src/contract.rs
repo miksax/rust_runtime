@@ -1,3 +1,4 @@
+use alloc::format;
 use rust_runtime::{
     blockchain::AddressHash,
     contract::op_20::Pointer,
@@ -11,7 +12,7 @@ use rust_runtime::{
         StorageValue,
     },
     types::{CallData, Selector},
-    ContractTrait, OP20Trait,
+    ContractTrait, OP20Trait, ToHex,
 };
 
 const SELECTOR_AIRDROP: Selector = encode_selector_const("airdrop");
@@ -54,6 +55,15 @@ impl Contract {
         selector: Selector,
         call_data: CallData,
     ) -> Result<crate::WaBuffer, rust_runtime::error::Error> {
+        /*
+        rust_runtime::log(format!("Execute: {}", selector).as_str());
+        rust_runtime::log(format!("SELECTOR MINT: {}", SELECTOR_MINT).as_str());
+        rust_runtime::log(format!("SELECTOR AIRDROP: {}", SELECTOR_AIRDROP).as_str());
+        rust_runtime::log(
+            format!("SELECTOR AIRDROP DEFINED: {}", SELECTOR_AIRDROP_DEFINED).as_str(),
+        );
+         */
+
         match selector {
             SELECTOR_MINT => self.mint(call_data),
             SELECTOR_AIRDROP => self.airdrop(call_data),
@@ -66,15 +76,14 @@ impl Contract {
         &mut self,
         mut call_data: CallData,
     ) -> Result<crate::WaBuffer, rust_runtime::error::Error> {
-        self.only_owner(&self.environment().sender)?;
+        self.only_deployer(&self.environment().sender)?;
 
         let mut response = crate::WaBuffer::new(1, 1);
         let mut cursor = response.cursor();
-        cursor.write_bool(self.mint_base(
-            &call_data.read_address()?,
-            call_data.read_u256_be()?,
-            false,
-        )?)?;
+        let address = call_data.read_address()?;
+        let amount = call_data.read_u256_be()?;
+        rust_runtime::log(format!("Mint[{}] {}", address.to_hex(), amount).as_str());
+        cursor.write_bool(self.mint_base(&address, amount, false)?)?;
 
         return Ok(response);
     }
@@ -83,7 +92,7 @@ impl Contract {
         &mut self,
         mut call_data: CallData,
     ) -> Result<crate::WaBuffer, rust_runtime::error::Error> {
-        self.only_owner(&self.environment().sender)?;
+        self.only_deployer(&self.environment().sender)?;
         let drops = call_data.read_address_value_map()?;
         for (address, amount) in drops.iter() {
             self.mint_base(address, amount.clone(), false)?;
@@ -113,7 +122,7 @@ impl Contract {
         &mut self,
         mut call_data: CallData,
     ) -> Result<crate::WaBuffer, rust_runtime::error::Error> {
-        self.only_owner(&self.environment().sender)?;
+        self.only_deployer(&self.environment().sender)?;
         let amount = call_data.read_u256_be()?;
         let amount_of_addresses: u32 = call_data.read_u32_le()?;
 

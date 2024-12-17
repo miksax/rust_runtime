@@ -1,7 +1,8 @@
+use alloc::format;
 use ethnum::u256;
 
 use crate::{
-    blockchain::AddressHash,
+    blockchain::{address, AddressHash},
     constant::ADDRESS_BYTE_LENGTH,
     math::abi::encode_selector_const,
     storage::{
@@ -11,7 +12,7 @@ use crate::{
         stored_string::StoredString,
     },
     types::{CallData, Selector},
-    WaBuffer,
+    ToHex, WaBuffer,
 };
 
 pub struct OP20Params {
@@ -57,17 +58,20 @@ pub trait OP20Trait: super::ContractTrait {
         selector: Selector,
         call_data: crate::types::CallData,
     ) -> Result<crate::WaBuffer, crate::error::Error> {
+        crate::log("Execute base");
         match selector {
             SELECTOR_OWNER => {
                 let mut buffer = WaBuffer::new(ADDRESS_BYTE_LENGTH, 2);
                 let mut cursor = buffer.cursor();
-                cursor.write_address(&self.environment().owner)?;
+                cursor.write_address(&self.environment().deployer)?;
+                crate::log(format!("Owner: {}", self.environment().deployer.to_hex()).as_str());
                 Ok(buffer)
             }
             SELECTOR_DECIMALS => {
                 let mut buffer = WaBuffer::new(1, 2);
                 let mut cursor = buffer.cursor();
                 cursor.write_u8(self.decimals())?;
+                crate::log(format!("Decimals: {}", self.decimals()).as_str());
                 Ok(buffer)
             }
             SELECTOR_NAME => {
@@ -75,25 +79,29 @@ pub trait OP20Trait: super::ContractTrait {
                 let mut buffer = WaBuffer::new(name.len() + 2, 1);
                 let mut cursor = buffer.cursor();
                 cursor.write_string_with_len(&name)?;
+                crate::log(format!("Name: {}", self.name()).as_str());
                 Ok(buffer)
             }
             SELECTOR_SYMBOL => {
-                let name = self.symbol();
-                let mut buffer = WaBuffer::new(name.len() + 2, 1);
+                let symbol = self.symbol();
+                let mut buffer = WaBuffer::new(symbol.len() + 2, 1);
                 let mut cursor = buffer.cursor();
-                cursor.write_string_with_len(&name)?;
+                cursor.write_string_with_len(&symbol)?;
+                crate::log(format!("Symbol: {}", self.symbol()).as_str());
                 Ok(buffer)
             }
             SELECTOR_TOTAL_SUPPLY => {
                 let mut buffer = WaBuffer::new(32, 1);
                 let mut cursor = buffer.cursor();
                 cursor.write_u256_be(&self.total_supply().value())?;
+                crate::log(format!("Total supply: {}", self.total_supply().value()).as_str());
                 Ok(buffer)
             }
             SELECTOR_MAXIMUM_SUPPLY => {
                 let mut buffer = WaBuffer::new(32, 1);
                 let mut cursor = buffer.cursor();
                 cursor.write_u256_be(&self.max_supply())?;
+                crate::log(format!("Maximum supply: {}", self.max_supply()).as_str());
                 Ok(buffer)
             }
             SELECTOR_ALLOWANCE => self.allowance(call_data),
@@ -144,9 +152,20 @@ pub trait OP20Trait: super::ContractTrait {
     ) -> Result<crate::WaBuffer, crate::error::Error> {
         let mut response = crate::WaBuffer::new(32, 1);
         let mut cursor = response.cursor();
-        cursor.write_u256_be(
-            &self.allowance_base(&call_data.read_address()?, &call_data.read_address()?),
-        )?;
+        let address_owner = call_data.read_address()?;
+        let address_spender = call_data.read_address()?;
+        let allowance = self.allowance_base(&address_owner, &address_spender);
+
+        cursor.write_u256_be(&allowance)?;
+        crate::log(
+            format!(
+                "Allowance[{} -> {}] {}",
+                address_owner.to_hex(),
+                address_spender.to_hex(),
+                allowance
+            )
+            .as_str(),
+        );
         Ok(response)
     }
 
@@ -175,11 +194,21 @@ pub trait OP20Trait: super::ContractTrait {
     fn approve(&mut self, mut call_data: CallData) -> Result<crate::WaBuffer, crate::error::Error> {
         let owner = self.environment().sender;
         let spender = call_data.read_address()?;
-        let value = call_data.read_u256_be()?;
+        let amount = call_data.read_u256_be()?;
+
+        crate::log(
+            format!(
+                "Approve[{} -> {}] {}",
+                owner.to_hex(),
+                spender.to_hex(),
+                amount
+            )
+            .as_str(),
+        );
 
         let mut response = crate::WaBuffer::new(32, 1);
         let mut cursor = response.cursor();
-        cursor.write_bool(self.approve_base(&owner, &spender, value)?)?;
+        cursor.write_bool(self.approve_base(&owner, &spender, amount)?)?;
 
         Ok(response)
     }
@@ -194,17 +223,20 @@ pub trait OP20Trait: super::ContractTrait {
     ) -> Result<crate::WaBuffer, crate::error::Error> {
         let mut response = WaBuffer::new(32, 1);
         let mut cursor = response.cursor();
-        cursor.write_u256_be(&self.balance_of_base(&call_data.read_address()?))?;
+        let address = call_data.read_address()?;
+        let balance = self.balance_of_base(&address);
+        crate::log(format!("Balance of[{}] {}", address.to_hex(), balance).as_str());
+        cursor.write_u256_be(&balance)?;
         Ok(response)
     }
 
-    fn burn_base(&mut self, value: u256, only_owner: bool) -> Result<bool, crate::error::Error> {
+    fn burn_base(&mut self, value: u256, only_deployer: bool) -> Result<bool, crate::error::Error> {
         if value.eq(&u256::ZERO) {
             return Err(crate::error::Error::NoTokens);
         }
 
-        if only_owner {
-            self.only_owner(&self.environment().sender)?;
+        if only_deployer {
+            self.only_deployer(&self.environment().sender)?;
         }
 
         let total_supply = self.total_supply().value();
@@ -236,7 +268,9 @@ pub trait OP20Trait: super::ContractTrait {
     ) -> Result<crate::WaBuffer, crate::error::Error> {
         let mut response = WaBuffer::new(1, 1);
         let mut cursor = response.cursor();
-        cursor.write_bool(self.burn_base(call_data.read_u256_be()?, true)?)?;
+        let amount = call_data.read_u256_be()?;
+        crate::log(format!("Burn {}", amount).as_str());
+        cursor.write_bool(self.burn_base(amount, true)?)?;
         Ok(response)
     }
 
@@ -244,10 +278,10 @@ pub trait OP20Trait: super::ContractTrait {
         &mut self,
         to: &AddressHash,
         value: u256,
-        only_owner: bool,
+        only_deployer: bool,
     ) -> Result<bool, crate::error::Error> {
-        if only_owner {
-            self.only_owner(&self.environment().sender)?;
+        if only_deployer {
+            self.only_deployer(&self.environment().sender)?;
         }
 
         if !self.balance_of_map().contains_key(to) {
@@ -255,17 +289,18 @@ pub trait OP20Trait: super::ContractTrait {
         } else {
             let to_balance = self.balance_of_map().get(to, u256::ZERO).u256();
             self.balance_of_map().set(to, to_balance + value);
-
-            let old = self.total_supply().value();
-            let new = old + value;
-
-            if new > self.max_supply() {
-                return Err(crate::error::Error::MaxSupplyReached);
-            }
-            self.total_supply().set(new);
-
-            Self::create_mint_event(*to, value)?;
         }
+
+        let old = self.total_supply().value();
+        let new = old + value;
+
+        if new > self.max_supply() {
+            return Err(crate::error::Error::MaxSupplyReached);
+        }
+        self.total_supply().set(new);
+
+        Self::create_mint_event(*to, value)?;
+
         Ok(true)
     }
 
@@ -305,7 +340,10 @@ pub trait OP20Trait: super::ContractTrait {
     ) -> Result<crate::WaBuffer, crate::error::Error> {
         let mut response = WaBuffer::new(1, 1);
         let mut cursor = response.cursor();
-        let result = self.transfer_base(&call_data.read_address()?, call_data.read_u256_be()?)?;
+        let address = call_data.read_address()?;
+        let amount = call_data.read_u256_be()?;
+        crate::log(format!("Transfer to[{}] {}", address.to_hex(), amount).as_str());
+        let result = self.transfer_base(&address, amount)?;
 
         cursor.write_bool(result)?;
         Ok(response)
@@ -313,20 +351,20 @@ pub trait OP20Trait: super::ContractTrait {
 
     fn spend_allowance(
         &mut self,
-        owner: &AddressHash,
+        deployer: &AddressHash,
         spender: &AddressHash,
         value: u256,
     ) -> Result<(), crate::error::Error> {
-        let mut owner_allowance_map = self.allowance_map().get(owner);
-        let allowed: u256 = owner_allowance_map.get(&spender.bytes).u256();
+        let mut deployer_allowance_map = self.allowance_map().get(deployer);
+        let allowed: u256 = deployer_allowance_map.get(&spender.bytes).u256();
 
         if allowed < value {
             return Err(crate::error::Error::InsufficientAllowance);
         }
 
         let new_allowance = allowed - value;
-        owner_allowance_map.set(&spender.bytes, new_allowance.into());
-        self.allowance_map().set(*owner, owner_allowance_map);
+        deployer_allowance_map.set(&spender.bytes, new_allowance.into());
+        self.allowance_map().set(*deployer, deployer_allowance_map);
         Ok(())
     }
 
@@ -379,11 +417,21 @@ pub trait OP20Trait: super::ContractTrait {
         let mut response = WaBuffer::new(1, 1);
         let mut cursor = response.cursor();
 
-        cursor.write_bool(self.transfer_from_base(
-            &call_data.read_address()?,
-            &call_data.read_address()?,
-            call_data.read_u256_be()?,
-        )?)?;
+        let address_from = call_data.read_address()?;
+        let address_to = call_data.read_address()?;
+        let amount = call_data.read_u256_be()?;
+
+        crate::log(
+            format!(
+                "Transfer[{} -> {}] {}",
+                address_from.to_hex(),
+                address_to.to_hex(),
+                amount
+            )
+            .as_str(),
+        );
+
+        cursor.write_bool(self.transfer_from_base(&address_from, &address_to, amount)?)?;
 
         Ok(response)
     }
@@ -395,16 +443,16 @@ pub trait OP20Trait: super::ContractTrait {
     }
 
     fn create_approve_event(
-        owner: AddressHash,
+        deployer: AddressHash,
         spender: AddressHash,
         value: u256,
     ) -> Result<(), crate::error::Error> {
-        let approve_event = crate::event::Event::approve(owner, spender, value)?;
+        let approve_event = crate::event::Event::approve(deployer, spender, value)?;
         Self::emit(&approve_event)
     }
 
-    fn create_mint_event(owner: AddressHash, amount: u256) -> Result<(), crate::error::Error> {
-        let mint_event = crate::event::Event::mint(owner, amount)?;
+    fn create_mint_event(deployer: AddressHash, amount: u256) -> Result<(), crate::error::Error> {
+        let mint_event = crate::event::Event::mint(deployer, amount)?;
         Self::emit(&mint_event)
     }
 

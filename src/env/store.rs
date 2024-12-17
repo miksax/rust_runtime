@@ -10,6 +10,10 @@ static mut STORAGE: Map<StorageKey, StorageValue> = Map::new();
 
 #[cfg(target_arch = "wasm32")]
 pub fn pointer_store(key: &StorageKey, value: &StorageValue) -> Result<bool, crate::error::Error> {
+    use crate::storage::value;
+
+    crate::log(alloc::format!("Storing pointer: {:?} {:?}", key, value.u256()).as_str());
+
     let mut buffer = WaBuffer::new(64, 1);
     let mut cursor = buffer.cursor();
 
@@ -39,9 +43,11 @@ pub fn pointer_load(key: &StorageKey) -> Result<StorageValue, crate::error::Erro
 
     cursor.write_bytes(key)?;
     unsafe {
-        Ok(WaBuffer::from_raw(super::global::load(buffer.ptr()))
+        let value: StorageValue = WaBuffer::from_raw(super::global::load(buffer.ptr()))
             .data()
-            .into())
+            .into();
+        crate::log(alloc::format!("Loading pointer: {:?} {:?}", key, value.u256()).as_str());
+        Ok(value)
     }
 }
 #[cfg(not(target_arch = "wasm32"))]

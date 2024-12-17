@@ -9,7 +9,7 @@ pub struct Environment {
     pub origin: super::AddressHash,
     pub transaction_hash: super::TransactionHash,
     pub block_hash: super::BlockHash,
-    pub owner: super::AddressHash,
+    pub deployer: super::AddressHash,
     pub address: super::AddressHash,
     pub timestamp: u64,
     pub safe_rnd: u64,
@@ -22,7 +22,7 @@ impl Environment {
         origin: AddressHash,
         transaction_hash: super::TransactionHash,
         block_hash: super::BlockHash,
-        owner: AddressHash,
+        deployer: AddressHash,
         address: AddressHash,
         timestamp: u64,
         safe_rnd: u64,
@@ -32,7 +32,7 @@ impl Environment {
             origin,
             transaction_hash,
             block_hash,
-            owner,
+            deployer,
             address,
             timestamp,
             safe_rnd,
@@ -47,7 +47,7 @@ impl Display for Environment {
             .field("origin", &self.origin.to_hex())
             .field("transaction", &to_hex(&self.transaction_hash.bytes))
             .field("block_hash", &to_hex(&self.block_hash.bytes))
-            .field("owner", &self.owner.to_hex())
+            .field("deployer", &self.deployer.to_hex())
             .field("address", &self.address.to_hex())
             .field("timestamp", &self.timestamp.to_string())
             .field("safe_rnd", &self.safe_rnd.to_string())

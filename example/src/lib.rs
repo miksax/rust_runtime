@@ -22,7 +22,7 @@ pub unsafe fn execute(ptr: WaPtr) -> WaPtr {
         Ok(buffer) => buffer.ptr(),
         Err(err) => {
             rust_runtime::log(err.as_str());
-            WaBuffer::new(0, 1).ptr()
+            panic!("Error occured")
         }
     }
 }
@@ -30,7 +30,7 @@ pub unsafe fn execute(ptr: WaPtr) -> WaPtr {
 #[cfg(target_arch = "wasm32")]
 #[export_name = "onDeploy"]
 #[allow(static_mut_refs)]
-#[no_mangle]
+//#[no_mangle]
 pub unsafe fn on_deploy(ptr: WaPtr) {
     CONTRACT.on_deploy(WaBuffer::from_raw(ptr).cursor());
 }
@@ -38,7 +38,7 @@ pub unsafe fn on_deploy(ptr: WaPtr) {
 #[cfg(target_arch = "wasm32")]
 #[export_name = "setEnvironment"]
 #[allow(static_mut_refs)]
-#[no_mangle]
+//#[no_mangle]
 pub unsafe fn set_environment(ptr: WaPtr) {
     let buffer = WaBuffer::from_raw(ptr);
     let environment: &mut rust_runtime::blockchain::Environment = buffer.into_type();

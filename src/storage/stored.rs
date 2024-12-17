@@ -43,7 +43,7 @@ where
                 )
                 .into(),
             );
-            self.default_value.clone().into()
+            self.value.as_ref().unwrap().clone()
         }
     }
 
