@@ -35,7 +35,7 @@ impl Cursor {
         self.writer = 0;
     }
 
-    pub fn get_buffer(&self) -> WaBuffer {
+    pub fn get_buffer(&self) -> Result<WaBuffer, crate::error::Error> {
         WaBuffer::from_bytes(self.inner)
     }
 }
@@ -45,22 +45,24 @@ mod tests {
     use ethnum::u256;
 
     #[test]
-    fn test_reader() {
+    fn test_reader() -> Result<(), crate::error::Error> {
         let mem = alloc::boxed::Box::new([0; 256]);
         let mut cursor = super::Cursor::from_slice(alloc::boxed::Box::leak(mem));
 
-        cursor.write_u8(1).unwrap();
-        cursor.write_u16_le(&2).unwrap();
-        cursor.write_u32_le(&3).unwrap();
-        cursor.write_u64_le(&4).unwrap();
-        cursor.write_u128_le(&5).unwrap();
-        cursor.write_u256_be(&u256::new(6)).unwrap();
+        cursor.write_u8(1)?;
+        cursor.write_u16_le(&2)?;
+        cursor.write_u32_le(&3)?;
+        cursor.write_u64_le(&4)?;
+        cursor.write_u128_le(&5)?;
+        cursor.write_u256_be(&u256::new(6))?;
 
-        assert_eq!(cursor.read_u8().unwrap(), 1);
-        assert_eq!(cursor.read_u16_le().unwrap(), 2);
-        assert_eq!(cursor.read_u32_le().unwrap(), 3);
-        assert_eq!(cursor.read_u64_le().unwrap(), 4);
-        assert_eq!(cursor.read_u128_le().unwrap(), 5);
-        assert_eq!(cursor.read_u256_be().unwrap(), u256::new(6));
+        assert_eq!(cursor.read_u8()?, 1);
+        assert_eq!(cursor.read_u16_le()?, 2);
+        assert_eq!(cursor.read_u32_le()?, 3);
+        assert_eq!(cursor.read_u64_le()?, 4);
+        assert_eq!(cursor.read_u128_le()?, 5);
+        assert_eq!(cursor.read_u256_be()?, u256::new(6));
+
+        Ok(())
     }
 }

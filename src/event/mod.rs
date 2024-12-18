@@ -17,7 +17,7 @@ impl Event {
     ) -> Result<Self, crate::error::Error> {
         let event_type = "Approve";
         let byte_size = ADDRESS_BYTE_LENGTH * 2 + 32;
-        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1);
+        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1)?;
         let mut cursor = buffer.cursor();
 
         cursor.write_string_with_len(event_type)?;
@@ -32,7 +32,7 @@ impl Event {
     pub fn burn(amount: u256) -> Result<Self, crate::error::Error> {
         let event_type = "Burn";
         let byte_size = 32;
-        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1);
+        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1)?;
         let mut cursor = buffer.cursor();
 
         cursor.write_string_with_len(event_type)?;
@@ -45,7 +45,7 @@ impl Event {
     pub fn claim(amount: u256) -> Result<Self, crate::error::Error> {
         let event_type = "Claim";
         let byte_size = 32;
-        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1);
+        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1)?;
         let mut cursor = buffer.cursor();
 
         cursor.write_string_with_len(event_type)?;
@@ -58,7 +58,7 @@ impl Event {
     pub fn mint(address: AddressHash, amount: u256) -> Result<Self, crate::error::Error> {
         let event_type = "Mint";
         let byte_size = 32 + ADDRESS_BYTE_LENGTH;
-        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1);
+        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1)?;
         let mut cursor = buffer.cursor();
 
         cursor.write_string_with_len(event_type)?;
@@ -72,7 +72,7 @@ impl Event {
     pub fn stake(amount: u256) -> Result<Self, crate::error::Error> {
         let event_type = "Stake";
         let byte_size = 32;
-        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1);
+        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1)?;
         let mut cursor = buffer.cursor();
 
         cursor.write_string_with_len(event_type)?;
@@ -85,7 +85,7 @@ impl Event {
     pub fn unstake(amount: u256) -> Result<Self, crate::error::Error> {
         let event_type = "Unstake";
         let byte_size = 32;
-        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1);
+        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1)?;
         let mut cursor = buffer.cursor();
 
         cursor.write_string_with_len(event_type)?;
@@ -103,7 +103,7 @@ impl Event {
         let event_type = "Transfer";
 
         let byte_size = ADDRESS_BYTE_LENGTH * 2 + 32;
-        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1);
+        let mut buffer = WaBuffer::new(event_type.len() + 6 + byte_size, 1)?;
         let mut cursor = buffer.cursor();
 
         cursor.write_string_with_len(event_type)?;

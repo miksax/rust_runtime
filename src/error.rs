@@ -1,4 +1,5 @@
-#[derive(Debug)]
+use core::fmt::Debug;
+
 pub enum Error {
     NoMoreData,
     BufferIsFull,
@@ -40,5 +41,11 @@ impl Error {
             Self::Test => "Test",
             Self::Extra(err) => err,
         }
+    }
+}
+
+impl Debug for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct(&self.as_str()).finish()
     }
 }

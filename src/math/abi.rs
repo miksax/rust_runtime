@@ -17,7 +17,12 @@ pub const fn encode_selector_const(selector: &str) -> crate::types::Selector {
  * Encode selector in the runtime
  */
 pub fn encode_selector(selector: &str) -> crate::types::Selector {
-    super::bytes::bytes4(crate::env::sha256(selector.as_bytes()).try_into().unwrap())
+    super::bytes::bytes4(
+        crate::env::sha256(selector.as_bytes())
+            .unwrap()
+            .try_into()
+            .unwrap(),
+    )
 }
 
 pub const fn encode_pointer_const(unique_identifier: u16) -> StorageKey {
@@ -29,7 +34,7 @@ pub const fn encode_pointer_const(unique_identifier: u16) -> StorageKey {
 
 pub fn encode_pointer(unique_identifier: u16, typed: &[u8]) -> StorageKey {
     let hash = if typed.len() != 32 {
-        sha256(typed)
+        sha256(typed).unwrap()
     } else {
         typed
     };

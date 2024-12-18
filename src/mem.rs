@@ -10,9 +10,9 @@ extern crate alloc;
 pub type WaPtr = u32;
 
 pub struct WaCell {
-    pub mm_info: usize,
-    pub gc_info1: usize,
-    pub gc_info2: usize,
+    pub mm_info: u64,
+    pub gc_info1: u64,
+    pub gc_info2: u64,
     pub rt_id: u32,
     pub rt_size: u32,
 }
@@ -32,8 +32,9 @@ impl WaCell {
             let layout = WaCell::layout(size);
             let ptr = alloc(layout);
             let cell = NonNull::<WaCell>::new_unchecked(ptr.cast()).as_mut();
+
             cell.gc_info1 = 0;
-            cell.mm_info = ptr as usize;
+            cell.mm_info = ptr as u64;
             cell.rt_id = id;
             cell.rt_size = size as u32;
             cell
@@ -83,23 +84,23 @@ impl Clone for WaBuffer {
 }
 
 impl WaBuffer {
-    pub fn new(size: usize, id: u32) -> WaBuffer {
+    pub fn new(size: usize, id: u32) -> Result<WaBuffer, crate::error::Error> {
         let buffer = WaCell::new(size, 1);
         let pointer = WaCell::new(12, id);
         let mut cursor = pointer.cursor();
-        cursor.write_u32_le(&buffer.ptr()).unwrap();
-        cursor.write_u32_le(&buffer.ptr()).unwrap();
-        cursor.write_u32_le(&(size as u32)).unwrap();
-        WaBuffer { pointer, buffer }
+        cursor.write_u32_le(&buffer.ptr())?;
+        cursor.write_u32_le(&buffer.ptr())?;
+        cursor.write_u32_le(&(size as u32))?;
+        Ok(WaBuffer { pointer, buffer })
     }
-    pub fn from_bytes(bytes: &[u8]) -> WaBuffer {
+    pub fn from_bytes(bytes: &[u8]) -> Result<WaBuffer, crate::error::Error> {
         let buffer = WaCell::new_data(1, bytes);
         let pointer = WaCell::new(12, 2);
         let mut cursor = pointer.cursor();
-        cursor.write_u32_le(&buffer.ptr()).unwrap();
-        cursor.write_u32_le(&buffer.ptr()).unwrap();
-        cursor.write_u32_le(&(bytes.len() as u32)).unwrap();
-        WaBuffer { pointer, buffer }
+        cursor.write_u32_le(&buffer.ptr())?;
+        cursor.write_u32_le(&buffer.ptr())?;
+        cursor.write_u32_le(&(bytes.len() as u32))?;
+        Ok(WaBuffer { pointer, buffer })
     }
     pub fn from_raw(ptr: WaPtr) -> WaBuffer {
         let pointer = WaCell::from_raw(ptr);
@@ -136,7 +137,7 @@ impl WaBuffer {
 }
 
 impl FromStr for WaBuffer {
-    type Err = u8;
+    type Err = crate::error::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = s.as_bytes();
         let len = bytes.len() as u16;
@@ -146,7 +147,7 @@ impl FromStr for WaBuffer {
             .chain(bytes)
             .cloned()
             .collect::<alloc::vec::Vec<u8>>();
-        Ok(WaBuffer::from_bytes(&str_data))
+        WaBuffer::from_bytes(&str_data)
     }
 }
 

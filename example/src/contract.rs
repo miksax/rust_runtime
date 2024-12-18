@@ -1,4 +1,3 @@
-use alloc::format;
 use rust_runtime::{
     blockchain::AddressHash,
     contract::op_20::Pointer,
@@ -8,11 +7,10 @@ use rust_runtime::{
         multi_address_map::MultiAddressMemoryMap,
         stored::{StoredTrait, StoredU256, StoredU8},
         stored_map::StoredMap,
-        stored_string::StoredString,
         StorageValue,
     },
     types::{CallData, Selector},
-    ContractTrait, OP20Trait, ToHex,
+    ContractTrait, OP20Trait,
 };
 
 const SELECTOR_AIRDROP: Selector = encode_selector_const("airdrop");
@@ -36,8 +34,8 @@ impl Contract {
                     u256::new(100000000000000000000000000),
                 ),
                 decimals: StoredU8::new_const(Pointer::Decimals.u16(), 18),
-                name: StoredString::new_const(Pointer::Name.u16(), "MyToken"),
-                symbol: StoredString::new_const(Pointer::Symbol.u16(), "TOKEN"),
+                name: "MyToken",
+                symbol: "TOKEN",
             },
             balance_of_map: StoredMap::new(Pointer::BalanceOfMap.u16()),
             allowance_map: MultiAddressMemoryMap::new(
@@ -55,15 +53,6 @@ impl Contract {
         selector: Selector,
         call_data: CallData,
     ) -> Result<crate::WaBuffer, rust_runtime::error::Error> {
-        /*
-        rust_runtime::log(format!("Execute: {}", selector).as_str());
-        rust_runtime::log(format!("SELECTOR MINT: {}", SELECTOR_MINT).as_str());
-        rust_runtime::log(format!("SELECTOR AIRDROP: {}", SELECTOR_AIRDROP).as_str());
-        rust_runtime::log(
-            format!("SELECTOR AIRDROP DEFINED: {}", SELECTOR_AIRDROP_DEFINED).as_str(),
-        );
-         */
-
         match selector {
             SELECTOR_MINT => self.mint(call_data),
             SELECTOR_AIRDROP => self.airdrop(call_data),
@@ -78,11 +67,10 @@ impl Contract {
     ) -> Result<crate::WaBuffer, rust_runtime::error::Error> {
         self.only_deployer(&self.environment().sender)?;
 
-        let mut response = crate::WaBuffer::new(1, 1);
+        let mut response = crate::WaBuffer::new(1, 1)?;
         let mut cursor = response.cursor();
         let address = call_data.read_address()?;
         let amount = call_data.read_u256_be()?;
-        rust_runtime::log(format!("Mint[{}] {}", address.to_hex(), amount).as_str());
         cursor.write_bool(self.mint_base(&address, amount, false)?)?;
 
         return Ok(response);
@@ -96,10 +84,9 @@ impl Contract {
         let drops = call_data.read_address_value_map()?;
         for (address, amount) in drops.iter() {
             self.mint_base(address, amount.clone(), false)?;
-            rust_runtime::log(format!("Airdrop[{}] {}", address.to_hex(), amount).as_str());
         }
 
-        let mut response = crate::WaBuffer::new(1, 1);
+        let mut response = crate::WaBuffer::new(1, 1)?;
         let mut cursor = response.cursor();
         cursor.write_bool(true)?;
 
@@ -131,14 +118,11 @@ impl Contract {
         for _ in 0..amount_of_addresses {
             let address = call_data.read_address()?;
             self.optimized_mint(address, amount)?;
-            rust_runtime::log(
-                format!("Airdrop with amount[{}] {}", address.to_hex(), amount).as_str(),
-            );
         }
 
         self.total_supply.commit();
 
-        let mut response = crate::WaBuffer::new(1, 1);
+        let mut response = crate::WaBuffer::new(1, 1)?;
         let mut cursor = response.cursor();
         cursor.write_bool(true)?;
         Ok(response)

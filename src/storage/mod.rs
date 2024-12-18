@@ -29,13 +29,11 @@ impl GlobalStore {
                         GLOBAL_STORE.insert(key.clone(), result);
                         result
                     } else {
-                        crate::log("Used default value - not in the map");
                         default_value
                     }
                 }
             }
         } else {
-            crate::log("Used default value ");
             default_value
         }
     }

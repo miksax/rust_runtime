@@ -1,5 +1,6 @@
 #![no_std]
 extern crate alloc;
+
 #[allow(unused_imports)]
 use rust_runtime::prelude::{ContractTrait, WaBuffer, WaPtr};
 pub mod contract;
@@ -16,7 +17,7 @@ static ALLOCATOR: LeakingPageAllocator = LeakingPageAllocator;
 
 #[cfg(target_arch = "wasm32")]
 #[allow(static_mut_refs)]
-#[no_mangle]
+#[export_name = "execute"]
 pub unsafe fn execute(ptr: WaPtr) -> WaPtr {
     match CONTRACT.execute(WaBuffer::from_raw(ptr).cursor()) {
         Ok(buffer) => buffer.ptr(),
@@ -30,7 +31,6 @@ pub unsafe fn execute(ptr: WaPtr) -> WaPtr {
 #[cfg(target_arch = "wasm32")]
 #[export_name = "onDeploy"]
 #[allow(static_mut_refs)]
-//#[no_mangle]
 pub unsafe fn on_deploy(ptr: WaPtr) {
     CONTRACT.on_deploy(WaBuffer::from_raw(ptr).cursor());
 }
@@ -38,7 +38,6 @@ pub unsafe fn on_deploy(ptr: WaPtr) {
 #[cfg(target_arch = "wasm32")]
 #[export_name = "setEnvironment"]
 #[allow(static_mut_refs)]
-//#[no_mangle]
 pub unsafe fn set_environment(ptr: WaPtr) {
     let buffer = WaBuffer::from_raw(ptr);
     let environment: &mut rust_runtime::blockchain::Environment = buffer.into_type();

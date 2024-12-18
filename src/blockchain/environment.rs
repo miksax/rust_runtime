@@ -1,7 +1,3 @@
-use crate::utils::{to_hex, ToHex};
-use alloc::string::ToString;
-use core::fmt::Display;
-
 use super::AddressHash;
 
 pub struct Environment {
@@ -40,18 +36,27 @@ impl Environment {
     }
 }
 
-impl Display for Environment {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("Environment")
-            .field("sender", &self.sender.to_hex())
-            .field("origin", &self.origin.to_hex())
-            .field("transaction", &to_hex(&self.transaction_hash.bytes))
-            .field("block_hash", &to_hex(&self.block_hash.bytes))
-            .field("deployer", &self.deployer.to_hex())
-            .field("address", &self.address.to_hex())
-            .field("timestamp", &self.timestamp.to_string())
-            .field("safe_rnd", &self.safe_rnd.to_string())
-            .finish()
+#[allow(dead_code)]
+#[cfg(not(target_arch = "wasm32"))]
+mod display {
+    use crate::utils::{to_hex, ToHex};
+    use core::fmt::Display;
+
+    impl Display for super::Environment {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            use alloc::string::ToString;
+
+            f.debug_struct("Environment")
+                .field("sender", &self.sender.to_hex())
+                .field("origin", &self.origin.to_hex())
+                .field("transaction", &to_hex(&self.transaction_hash.bytes))
+                .field("block_hash", &to_hex(&self.block_hash.bytes))
+                .field("deployer", &self.deployer.to_hex())
+                .field("address", &self.address.to_hex())
+                .field("timestamp", &self.timestamp.to_string())
+                .field("safe_rnd", &self.safe_rnd.to_string())
+                .finish()
+        }
     }
 }
 
