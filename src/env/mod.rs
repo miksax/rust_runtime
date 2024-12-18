@@ -18,6 +18,5 @@ pub fn log(text: &str) {
 }
 
 pub fn emit(buffer: WaBuffer) {
-    crate::log("Hello form emit");
     unsafe { global::emit(buffer.ptr()) }
 }

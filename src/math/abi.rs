@@ -44,7 +44,7 @@ pub fn encode_pointer(unique_identifier: u16, typed: &[u8]) -> StorageKey {
         final_pointer[i + 2] = hash[i];
     }
      */
-    final_pointer[2..30].copy_from_slice(&hash[..28]);
+    final_pointer[2..32].copy_from_slice(&hash[..30]);
 
     final_pointer
 }

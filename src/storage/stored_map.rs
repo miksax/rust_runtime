@@ -1,10 +1,11 @@
 use core::marker::PhantomData;
 
+use alloc::format;
 use ethnum::u256;
 
-use crate::{blockchain::AddressHash, math::abi::encode_pointer};
+use crate::{blockchain::AddressHash, math::abi::encode_pointer, to_hex};
 
-use super::{GlobalStore, StorageKey, StorageValue};
+use super::{value, GlobalStore, StorageKey, StorageValue};
 
 pub struct StoredMap<K, V>
 where
@@ -30,19 +31,54 @@ where
     }
 
     pub fn set(&self, key: &K, value: V) {
-        let key = encode_pointer(self.pointer, &(*key).into());
-        GlobalStore::set(key, Into::<StorageValue>::into(value.clone()));
+        let key: StorageKey = (*key).into();
+        let key_hash = encode_pointer(self.pointer, &key);
+        let value = Into::<StorageValue>::into(value);
+        crate::log(
+            format!(
+                "Pointer set: {} {} {:?} {}",
+                self.pointer,
+                to_hex(&key),
+                key_hash,
+                value.u256()
+            )
+            .as_str(),
+        );
+        GlobalStore::set(key, value);
     }
 
     pub fn get(&self, key: &K, default_value: V) -> StorageValue {
-        let key = encode_pointer(self.pointer, &(*key).into());
-
-        GlobalStore::get(&key, default_value.into())
+        let key: StorageKey = (*key).into();
+        let key_hash = encode_pointer(self.pointer, &key);
+        let value = GlobalStore::get(&key, default_value.into());
+        crate::log(
+            format!(
+                "Pointer get: {} {} {:?} {}",
+                self.pointer,
+                to_hex(&key),
+                key_hash,
+                value.u256()
+            )
+            .as_str(),
+        );
+        value
     }
 
     pub fn contains_key(&self, key: &K) -> bool {
-        let key = encode_pointer(self.pointer, &(*key).into());
-        GlobalStore::has_key(&key)
+        let key: StorageKey = (*key).into();
+        let key_hash = encode_pointer(self.pointer, &key);
+        let has = GlobalStore::has_key(&key);
+        crate::log(
+            format!(
+                "Pointer has: {} {} {:?} {}",
+                self.pointer,
+                to_hex(&key),
+                key_hash,
+                has
+            )
+            .as_str(),
+        );
+        has
     }
 }
 

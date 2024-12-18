@@ -16,7 +16,7 @@ use rust_runtime::{
 };
 
 const SELECTOR_AIRDROP: Selector = encode_selector_const("airdrop");
-const SELECTOR_AIRDROP_DEFINED: Selector = encode_selector_const("airdropWithAmount");
+const SELECTOR_AIRDROP_WITH_AMOUNT: Selector = encode_selector_const("airdropWithAmount");
 const SELECTOR_MINT: Selector = encode_selector_const("mint");
 
 pub struct Contract {
@@ -67,7 +67,7 @@ impl Contract {
         match selector {
             SELECTOR_MINT => self.mint(call_data),
             SELECTOR_AIRDROP => self.airdrop(call_data),
-            SELECTOR_AIRDROP_DEFINED => self.airdrop_with_amount(call_data),
+            SELECTOR_AIRDROP_WITH_AMOUNT => self.airdrop_with_amount(call_data),
             _ => OP20Trait::execute_base(self, selector, call_data),
         }
     }
@@ -96,11 +96,13 @@ impl Contract {
         let drops = call_data.read_address_value_map()?;
         for (address, amount) in drops.iter() {
             self.mint_base(address, amount.clone(), false)?;
+            rust_runtime::log(format!("Airdrop[{}] {}", address.to_hex(), amount).as_str());
         }
 
         let mut response = crate::WaBuffer::new(1, 1);
         let mut cursor = response.cursor();
         cursor.write_bool(true)?;
+
         Ok(response)
     }
 
@@ -129,6 +131,9 @@ impl Contract {
         for _ in 0..amount_of_addresses {
             let address = call_data.read_address()?;
             self.optimized_mint(address, amount)?;
+            rust_runtime::log(
+                format!("Airdrop with amount[{}] {}", address.to_hex(), amount).as_str(),
+            );
         }
 
         self.total_supply.commit();

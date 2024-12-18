@@ -382,7 +382,7 @@ pub trait OP20Trait: super::ContractTrait {
         let new_balance = balance - value;
         self.balance_of_map().set(from, new_balance);
 
-        if self.balance_of_map().contains_key(to) {
+        if !self.balance_of_map().contains_key(to) {
             self.balance_of_map().set(to, value);
         } else {
             let to_balance: u256 = self.balance_of_map().get(to, u256::ZERO).u256();
@@ -452,6 +452,7 @@ pub trait OP20Trait: super::ContractTrait {
     }
 
     fn create_mint_event(deployer: AddressHash, amount: u256) -> Result<(), crate::error::Error> {
+        crate::log(format!("Mint event {} {}", deployer.to_hex(), amount).as_str());
         let mint_event = crate::event::Event::mint(deployer, amount)?;
         Self::emit(&mint_event)
     }
@@ -461,6 +462,15 @@ pub trait OP20Trait: super::ContractTrait {
         to: AddressHash,
         amount: u256,
     ) -> Result<(), crate::error::Error> {
+        crate::log(
+            format!(
+                "Transfer event {} {} {}",
+                from.to_hex(),
+                to.to_hex(),
+                amount
+            )
+            .as_str(),
+        );
         let transfer_event = crate::event::Event::transfer(from, to, amount)?;
         Self::emit(&transfer_event)
     }

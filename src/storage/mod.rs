@@ -19,24 +19,29 @@ pub struct GlobalStore {}
 
 impl GlobalStore {
     pub fn get(key: &StorageKey, default_value: StorageValue) -> StorageValue {
-        Self::ensure_key(key, default_value);
-
         if Self::has_key(key) {
             #[allow(static_mut_refs)]
             unsafe {
                 if let Some(value) = GLOBAL_STORE.get(key) {
                     *value
                 } else {
-                    default_value
+                    if let Ok(result) = crate::env::pointer_load(key) {
+                        GLOBAL_STORE.insert(key.clone(), result);
+                        result
+                    } else {
+                        crate::log("Used default value - not in the map");
+                        default_value
+                    }
                 }
             }
         } else {
+            crate::log("Used default value ");
             default_value
         }
     }
 
     pub fn set(key: StorageKey, value: StorageValue) {
-        assert!(crate::env::pointer_store(&key, &value).is_ok());
+        assert!(crate::env::pointer_store(&key, &value).unwrap());
 
         #[allow(static_mut_refs)]
         unsafe {
@@ -44,7 +49,7 @@ impl GlobalStore {
         }
     }
 
-    fn has_key(key: &StorageKey) -> bool {
+    pub fn has_key(key: &StorageKey) -> bool {
         #[allow(static_mut_refs)]
         unsafe {
             if GLOBAL_STORE.contains_key(key) {
@@ -58,17 +63,5 @@ impl GlobalStore {
         }
 
         false
-    }
-
-    fn ensure_key(key: &StorageKey, default_value: StorageValue) {
-        if Self::has_key(key) {
-            return;
-        }
-
-        if default_value.zero() {
-            return;
-        }
-
-        Self::set(*key, default_value);
     }
 }
