@@ -15,7 +15,7 @@ impl super::Cursor {
 
     pub fn write_u16_le(&mut self, val: &u16) -> Result<(), crate::error::Error> {
         if self.writer + 2 <= self.inner.len() {
-            self.inner[self.writer..self.writer + 2].copy_from_slice(&val.to_le_bytes());
+            self.inner[self.writer..self.writer + 2].copy_from_slice(&crate::u16_to_le(*val));
             self.writer += 2;
             Ok(())
         } else {
@@ -25,7 +25,7 @@ impl super::Cursor {
 
     pub fn write_u32_le(&mut self, val: &u32) -> Result<(), crate::error::Error> {
         if self.writer + 4 <= self.inner.len() {
-            self.inner[self.writer..self.writer + 4].copy_from_slice(&val.to_le_bytes());
+            self.inner[self.writer..self.writer + 4].copy_from_slice(&crate::u32_to_le(*val));
             self.writer += 4;
             Ok(())
         } else {
@@ -35,7 +35,7 @@ impl super::Cursor {
 
     pub fn write_u64_le(&mut self, val: &u64) -> Result<(), crate::error::Error> {
         if self.writer + 8 <= self.inner.len() {
-            self.inner[self.writer..self.writer + 8].copy_from_slice(&val.to_le_bytes());
+            self.inner[self.writer..self.writer + 8].copy_from_slice(&crate::u64_to_le(*val));
             self.writer += 8;
             Ok(())
         } else {
@@ -45,7 +45,7 @@ impl super::Cursor {
 
     pub fn write_u128_le(&mut self, val: &u128) -> Result<(), crate::error::Error> {
         if self.writer + 16 <= self.inner.len() {
-            self.inner[self.writer..self.writer + 16].copy_from_slice(&val.to_le_bytes());
+            self.inner[self.writer..self.writer + 16].copy_from_slice(&crate::u128_to_le(*val));
             self.writer += 16;
             Ok(())
         } else {
@@ -55,7 +55,7 @@ impl super::Cursor {
 
     pub fn write_u256_le(&mut self, val: &u256) -> Result<(), crate::error::Error> {
         if self.writer + 32 <= self.inner.len() {
-            self.inner[self.writer..self.writer + 32].copy_from_slice(&val.to_le_bytes());
+            self.inner[self.writer..self.writer + 32].copy_from_slice(&crate::u256_to_le(*val));
             self.writer += 32;
             Ok(())
         } else {
@@ -65,7 +65,7 @@ impl super::Cursor {
 
     pub fn write_u256_be(&mut self, val: &u256) -> Result<(), crate::error::Error> {
         if self.writer + 32 <= self.inner.len() {
-            self.inner[self.writer..self.writer + 32].copy_from_slice(&val.to_be_bytes());
+            self.inner[self.writer..self.writer + 32].copy_from_slice(&crate::u256_to_be(*val));
             self.writer += 32;
             Ok(())
         } else {

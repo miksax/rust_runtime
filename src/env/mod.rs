@@ -45,30 +45,6 @@ pub fn ripemd160(data: &[u8]) -> &'static [u8] {
     alloc::boxed::Box::leak(alloc::boxed::Box::new(hash.to_vec()))
 }
 
-pub struct WrappedMut<T> {
-    inner: T,
-}
-
-impl<T> WrappedMut<T> {
-    pub const fn new(t: T) -> WrappedMut<T> {
-        Self { inner: t }
-    }
-
-    pub fn as_ref(&self) -> &T {
-        &self.inner
-    }
-
-    pub fn as_mut(&self) -> &mut T {
-        unsafe {
-            if let Some(val) = ((&self.inner) as *const T as *mut T).as_mut() {
-                val
-            } else {
-                panic!("Unexpected null");
-            }
-        }
-    }
-}
-
 pub trait Context {
     fn log(&self, text: &str);
     fn emit(&mut self, event: &dyn crate::event::EventTrait);

@@ -7,7 +7,7 @@ edition = "2021"
 
 [workspace.dependencies]
 # This crate is much larger than expected. Avoid using it unless absolutely necessary.
-ethnum = "1.5.0"
+ethnum = { path = "./ethnum-rs"}
 lol_alloc = "0.4.1"
 rust_runtime = { path = "." }
 sha2-const = "0.1.2"
@@ -18,7 +18,7 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [workspace]
-members = ["example"]
+members = ["example", "ethnum-rs"]
 
 [dependencies]
 # This crate is much larger than expected. Avoid using it unless absolutely necessary.

@@ -32,8 +32,7 @@ impl super::Cursor {
 
     pub fn read_u32_le(&mut self) -> Result<u32, crate::error::Error> {
         if self.reader + 4 <= self.inner.len() {
-            let result =
-                u32::from_le_bytes(self.inner[self.reader..self.reader + 4].try_into().unwrap());
+            let result = crate::u32_from_le(&self.inner[self.reader..self.reader + 4]);
             self.reader += 4;
             Ok(result)
         } else {
@@ -43,8 +42,7 @@ impl super::Cursor {
 
     pub fn read_u64_le(&mut self) -> Result<u64, crate::error::Error> {
         if self.reader + 8 <= self.inner.len() {
-            let result =
-                u64::from_le_bytes(self.inner[self.reader..self.reader + 8].try_into().unwrap());
+            let result = crate::u64_from_le(&self.inner[self.reader..self.reader + 8]);
             self.reader += 8;
             Ok(result)
         } else {
@@ -54,11 +52,7 @@ impl super::Cursor {
 
     pub fn read_u128_le(&mut self) -> Result<u128, crate::error::Error> {
         if self.reader + 16 <= self.inner.len() {
-            let result = u128::from_le_bytes(
-                self.inner[self.reader..self.reader + 16]
-                    .try_into()
-                    .unwrap(),
-            );
+            let result = crate::u128_from_le(&self.inner[self.reader..self.reader + 16]);
             self.reader += 16;
             Ok(result)
         } else {
@@ -68,11 +62,7 @@ impl super::Cursor {
 
     pub fn read_u256_be(&mut self) -> Result<u256, crate::error::Error> {
         if self.reader + 32 <= self.inner.len() {
-            let result = u256::from_be_bytes(
-                self.inner[self.reader..self.reader + 32]
-                    .try_into()
-                    .unwrap(),
-            );
+            let result = crate::u256_from_be(&self.inner[self.reader..self.reader + 32]);
             self.reader += 32;
             Ok(result)
         } else {
@@ -82,11 +72,7 @@ impl super::Cursor {
 
     pub fn read_u256_le(&mut self) -> Result<u256, crate::error::Error> {
         if self.reader + 32 <= self.inner.len() {
-            let result = u256::from_le_bytes(
-                self.inner[self.reader..self.reader + 32]
-                    .try_into()
-                    .unwrap(),
-            );
+            let result = crate::u256_from_le(&self.inner[self.reader..self.reader + 32]);
             self.reader += 32;
             Ok(result)
         } else {
