@@ -1,17 +1,22 @@
 [package]
 name = "example"
-version = "0.1.0"
-edition = "2021"
+version = { workspace = true }
+edition = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"]
 
 [profile.release]
+opt-level = "s" # or "s" for size-speed balance
+lto = true # Link Time Optimization for smaller binary
+codegen-units = 1 # Ensures code is optimized across the board
+panic = "abort" # Avoids including panic runtime support
 strip = true
 
 [dependencies]
-rust_runtime = {path="../"}
-hex = "0.4.3"
-wasm_allocator = "0.1.1"
+lol_alloc = { workspace = true }
+rust_runtime = { workspace = true }
+sha2-const = {workspace = true }
+
 
 [features]

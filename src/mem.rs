@@ -1,312 +1,195 @@
-use core::slice;
-use std::{alloc::Layout, io::Write, mem, ptr};
+use alloc::alloc::{alloc, Layout};
+use alloc::slice;
+use core::ptr::NonNull;
+use core::str::FromStr;
 
+#[cfg(feature = "std")]
+use libc_print::std_name::println;
+
+use crate::cursor::Cursor; // Import format and String from alloc
+use crate::WaPtr;
 extern crate alloc;
 
-static mut MEMORY: Vec<WaPtr> = Vec::new();
-
-pub type WaPtr = u32;
-
-pub struct Cursor<'a> {
-    inner: &'a [u8],
-    pos: usize,
-}
-
-impl<'a> Cursor<'a> {
-    pub const fn new(inner: &[u8]) -> Cursor {
-        Cursor { pos: 0, inner }
-    }
-
-    pub fn into_inner(self) -> &'a [u8] {
-        self.inner
-    }
-
-    pub const fn position(&self) -> usize {
-        self.pos
-    }
-
-    pub fn read_u32(&mut self) -> u32 {
-        let result = u32::from_le_bytes(
-            self.inner[self.pos as usize..self.pos + 4]
-                .try_into()
-                .unwrap(),
-        );
-        self.pos += 4;
-        result
-    }
-}
+//pub type WaPtr = u32;
 
 pub struct WaCell {
-    pub mm_info: usize,
-    pub gc_info1: usize,
-    pub gc_info2: usize,
+    pub mm_info: u64,
+    pub gc_info1: u64,
+    pub gc_info2: u64,
     pub rt_id: u32,
     pub rt_size: u32,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub data: &'static mut [u8],
 }
 
 impl WaCell {
-    const fn size() -> WaPtr {
-        mem::size_of::<WaCell>() as WaPtr
+    const fn size() -> u32 {
+        size_of::<Self>() as u32
     }
     const fn usize() -> usize {
-        mem::size_of::<WaCell>()
+        size_of::<Self>()
     }
-    const fn layout(size: usize) -> std::alloc::Layout {
-        unsafe { std::alloc::Layout::from_size_align_unchecked(size + WaCell::usize(), 1) }
+    const fn layout(size: usize) -> Layout {
+        unsafe { Layout::from_size_align_unchecked(size + WaCell::usize(), 1) }
     }
-    pub fn new(size: usize, id: u32) -> Box<WaCell> {
+    pub fn new(size: usize, id: u32) -> &'static mut WaCell {
         unsafe {
             let layout = WaCell::layout(size);
-            let ptr = std::alloc::alloc(layout);
-            let mut cell = Box::<WaCell>::from_raw(ptr.cast());
+            let ptr = alloc(layout);
+
+            let cell = NonNull::<WaCell>::new_unchecked(ptr.cast()).as_mut();
+
             cell.gc_info1 = 0;
-            cell.mm_info = ptr as usize;
+            cell.mm_info = ptr as u64;
             cell.rt_id = id;
             cell.rt_size = size as u32;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let data = alloc(Layout::from_size_align_unchecked(size, 1));
+                cell.data = core::slice::from_raw_parts_mut(data, size);
+            }
             cell
         }
     }
 
-    pub fn new_data(id: u32, data: &[u8]) -> Box<WaCell> {
-        let mut cell = WaCell::new(data.len(), id);
-        cell.data_mut().write(data).unwrap();
+    pub fn new_data(id: u32, data: &[u8]) -> &'static mut WaCell {
+        let cell = WaCell::new(data.len(), id);
+        cell.data_mut().copy_from_slice(data); // Use `copy_from_slice` instead of `write`
         cell
     }
 
-    pub fn leak(mut self: Box<Self>) {
-        self.dec();
-        Box::leak(self);
-    }
-
-    pub fn drop(mut self: Box<Self>) {
-        if self.gc_info1 == 0 {
-            let layout = WaCell::layout(self.rt_size as usize);
-            unsafe {
-                let ptr = self.ptr();
-                if let Some(index) = MEMORY.iter().position(|cell_ptr| *cell_ptr == ptr) {
-                    MEMORY.remove(index);
-                }
-                std::alloc::dealloc(Box::into_raw(self) as *mut u8, layout);
-            }
-        } else {
-            self.dec();
-        }
-    }
-
-    pub fn from_raw(ptr: WaPtr) -> Box<WaCell> {
-        unsafe { Box::from_raw((ptr - WaCell::size()) as *mut u8 as *mut WaCell) }
-    }
-
-    pub fn to_raw(self: Box<Self>) -> WaPtr {
-        (Box::into_raw(self) as *const u8).wrapping_add(WaCell::usize()) as WaPtr
-    }
-
-    pub fn inc(&mut self) {
-        self.gc_info1 += 1;
-    }
-
-    pub fn dec(&mut self) {
-        if self.gc_info1 > 1 {
-            self.gc_info1 -= 1;
+    pub fn from_raw(ptr: WaPtr) -> &'static mut WaCell {
+        unsafe {
+            NonNull::<WaCell>::new_unchecked((ptr.0 - WaCell::size()) as *mut WaCell).as_mut()
         }
     }
 
     #[inline]
     pub fn ptr(&self) -> WaPtr {
-        (self as *const Self as *const u8 as WaPtr) + WaCell::size()
+        WaPtr((self as *const Self as *const u8 as u32) + WaCell::size())
     }
 
-    pub fn data<'a>(self: &Box<Self>) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.ptr() as *const u8, self.rt_size as usize) }
+    #[cfg(target_arch = "wasm32")]
+    pub fn data(&self) -> &'static [u8] {
+        #[cfg(target_arch = "wasm32")]
+        unsafe {
+            slice::from_raw_parts(self.ptr() as *const u8, self.rt_size as usize)
+        }
     }
 
-    pub fn data_mut<'a>(self: &mut Box<Self>) -> &mut [u8] {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn data(&self) -> &'static [u8] {
+        unsafe { slice::from_raw_parts(self.data.as_ptr(), self.rt_size as usize) }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn data_mut(&mut self) -> &'static mut [u8] {
         unsafe { slice::from_raw_parts_mut(self.ptr() as *mut u8, self.rt_size as usize) }
     }
 
-    pub fn cursor<'a>(self: &mut Box<Self>) -> Cursor {
-        Cursor::new(self.data_mut())
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn data_mut(&mut self) -> &'static mut [u8] {
+        unsafe { slice::from_raw_parts_mut(self.data.as_mut_ptr(), self.rt_size as usize) }
+    }
+
+    pub fn cursor(&mut self) -> super::cursor::Cursor {
+        super::cursor::Cursor::from_slice(self.data_mut())
     }
 }
 
-pub struct WaArray {
-    cell: Box<WaCell>,
-    buffer: Box<WaCell>,
+pub struct WaBuffer {
+    buffer: &'static mut WaCell,
+    pointer: &'static mut WaCell,
 }
 
-impl WaArray {
-    pub fn from_raw(ptr: WaPtr) -> WaArray {
-        let mut cell = WaCell::from_raw(ptr);
-        cell.inc();
-        let mut cursor = cell.cursor();
-        let buffer_ptr = cursor.read_u32();
-        let mut buffer = WaCell::from_raw(buffer_ptr);
-        buffer.inc();
-        WaArray { cell, buffer }
+impl Clone for WaBuffer {
+    fn clone(&self) -> Self {
+        WaBuffer {
+            buffer: WaCell::from_raw(self.buffer.ptr()),
+            pointer: WaCell::from_raw(self.pointer.ptr()),
+        }
+    }
+}
+
+impl WaBuffer {
+    pub fn new(size: usize, id: u32) -> Result<WaBuffer, crate::error::Error> {
+        let buffer = WaCell::new(size, 1);
+        let pointer = WaCell::new(12, id);
+        let mut cursor = pointer.cursor();
+
+        cursor.write_u32_le(&buffer.ptr().0)?;
+        cursor.write_u32_le(&buffer.ptr().0)?;
+        cursor.write_u32_le(&(size as u32))?;
+        Ok(WaBuffer { pointer, buffer })
+    }
+    pub fn from_bytes(bytes: &[u8]) -> Result<WaBuffer, crate::error::Error> {
+        let buffer = WaCell::new_data(1, bytes);
+        let pointer = WaCell::new(12, 2);
+        let mut cursor = pointer.cursor();
+
+        cursor.write_u32_le(&buffer.ptr().0)?;
+        cursor.write_u32_le(&buffer.ptr().0)?;
+        cursor.write_u32_le(&(bytes.len() as u32))?;
+        Ok(WaBuffer { pointer, buffer })
+    }
+    pub fn from_raw(ptr: WaPtr) -> WaBuffer {
+        let pointer = WaCell::from_raw(ptr);
+        let mut cursor = pointer.cursor();
+        let buffer_ptr = cursor.read_u32_le_unchecked();
+        let buffer = WaCell::from_raw(WaPtr(buffer_ptr));
+        WaBuffer { pointer, buffer }
     }
 
     pub fn ptr(&self) -> WaPtr {
-        self.cell.ptr()
+        self.pointer.ptr()
     }
 
-    pub fn data(&self) -> &[u8] {
+    pub fn data(&self) -> &'static [u8] {
         self.buffer.data()
     }
 
-    pub fn to_raw(mut self) -> WaPtr {
-        self.buffer.dec();
-        self.buffer.to_raw();
-        self.cell.dec();
-        self.cell.to_raw()
+    pub fn cursor(&mut self) -> Cursor {
+        Cursor::from_slice(self.buffer.data_mut())
     }
 
-    pub fn leak(self) {
-        self.cell.leak();
-        self.buffer.leak();
-    }
-
-    pub fn drop(self) {
-        self.cell.drop();
-        self.buffer.drop();
+    /// # Safety
+    ///
+    /// Cast memory to given Type.
+    /// It is very unsafe and works only on WASM32 arch due to memory align and type sizes
+    #[cfg(target_arch = "wasm32")]
+    pub unsafe fn into_type<T: Sized>(&self) -> &'static mut T {
+        if core::mem::size_of::<T>() <= self.buffer.rt_size as usize {
+            NonNull::new_unchecked(self.buffer.ptr() as *mut T).as_mut()
+        } else {
+            panic!("Cannot map larger objects");
+        }
     }
 }
 
-pub struct WaString {
-    cell: Box<WaCell>,
-    buffer: Box<WaCell>,
-}
-impl WaString {
-    pub fn new(text: &str) -> WaString {
-        let len = (text.chars().count()) as u16;
+impl FromStr for WaBuffer {
+    type Err = crate::error::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = s.as_bytes();
+        let len = bytes.len() as u16;
         let str_data = len
             .to_le_bytes()
             .iter()
-            // Write string itself
-            .chain(text.as_bytes())
+            .chain(bytes)
             .cloned()
             .collect::<alloc::vec::Vec<u8>>();
-        let buffer = WaCell::new_data(1, &str_data);
-        let cell = WaCell::new_data(
-            2,
-            &[
-                buffer.ptr().to_le_bytes(),
-                buffer.ptr().to_le_bytes(),
-                (str_data.len() as u32).to_le_bytes(),
-            ]
-            .concat(),
-        );
-
-        WaString { cell, buffer }
-    }
-
-    pub fn ptr(&self) -> WaPtr {
-        self.cell.ptr()
-    }
-
-    pub fn data(&self) -> &[u8] {
-        self.buffer.data()
-    }
-
-    pub fn to_raw(mut self) -> WaPtr {
-        self.buffer.dec();
-        self.buffer.to_raw();
-        self.cell.dec();
-        self.cell.to_raw()
-    }
-
-    fn leak(self) {
-        self.cell.leak();
-        self.buffer.leak();
-    }
-
-    fn drop(self) {
-        self.cell.drop();
-        self.buffer.drop();
+        WaBuffer::from_bytes(&str_data)
     }
 }
 
-#[link(wasm_import_module = "env")]
-extern "C" {
-    pub fn log(buffer: WaPtr);
-}
-
-pub fn log_str(text: &str) {
-    unsafe {
-        let string = WaString::new(text);
-        log(string.ptr());
-        string.drop();
-    }
-}
-
-#[no_mangle]
-pub fn execute(ptr: WaPtr) -> WaPtr {
-    let buffer = WaArray::from_raw(ptr);
-    log_str(&alloc::format!("Execute: {:?}", buffer.data()));
-    buffer.to_raw()
-}
-
-#[no_mangle]
-#[export_name = "setEnvironment"]
-pub fn set_environment(ptr: WaPtr) {
-    let buffer = WaArray::from_raw(ptr);
-    log_str(&alloc::format!("Set environment: {:?}", buffer.data()));
-    buffer.leak();
-}
-
-#[no_mangle]
-#[export_name = "onDeploy"]
-pub fn on_deploy(ptr: WaPtr) {
-    let buffer = WaArray::from_raw(ptr);
-    log_str(&format!("On deploy: {:?}", buffer.data()));
-    buffer.leak();
-}
-
-#[no_mangle]
 #[export_name = "__new"]
 pub fn new(size: usize, id: u32) -> WaPtr {
-    unsafe {
-        let cell = WaCell::new(size, id);
-        let ptr = cell.to_raw();
-        MEMORY.push(ptr);
-        ptr
-    }
+    WaCell::new(size, id).ptr()
 }
 
-#[no_mangle]
 #[export_name = "__pin"]
 pub fn pin(ptr: WaPtr) -> WaPtr {
-    unsafe {
-        let mut cell = WaCell::from_raw(ptr);
-        cell.inc();
-        cell.to_raw()
-    }
+    ptr
 }
 
-#[no_mangle]
 #[export_name = "__unpin"]
-pub fn unpin(ptr: WaPtr) {
-    unsafe {
-        let mut cell = WaCell::from_raw(ptr);
-        cell.dec();
-        cell.to_raw();
-        log_str(&alloc::format!("Mem size: {}", MEMORY.len()));
-    }
-}
-
-/**
- * Remove unused allocations
- */
-#[no_mangle]
-#[export_name = "__collect"]
-pub fn collect() {
-    unsafe {
-        let mut new = Vec::new();
-        for ptr in MEMORY.iter() {
-            let cell = WaCell::from_raw(*ptr);
-            if cell.gc_info1 > 0 {
-                new.push(cell.to_raw());
-            }
-        }
-        MEMORY = new
-    }
-}
+pub fn unpin(_ptr: WaPtr) {}
